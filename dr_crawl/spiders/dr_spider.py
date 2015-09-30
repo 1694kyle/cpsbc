@@ -1,12 +1,16 @@
 from scrapy.linkextractors import LinkExtractor
-from scrapy.spiders import Spider, Request, Rule, CrawlSpider
-from datetime import datetime
+from scrapy.spiders import Request, Rule, CrawlSpider, Spider
+from scrapy.http import FormRequest, Request
 from scrapy.selector import Selector
 from dr_crawl.items import DrCrawlItem
+from selenium import webdriver
 import pdb
 import re
 from scrapy import signals
 from scrapy.xlib.pydispatch import dispatcher
+import time
+
+
 
 def load_xpaths():
     xpaths = {
@@ -26,51 +30,11 @@ def load_xpaths():
     return xpaths
 
 
-def build_start_urls(pc_file='zips', **kwargs):
-    urls = []
-    pcs = ['%'.join(z.strip().split()) for z in open(pc_file)]
-    for pc in pcs:
-        urls.append(build_search_url(postal_code=pc))
-    return urls
-
-
-def build_search_url(**kwargs):
-    base_url = r'https://www.cpsbc.ca/physician_search?' \
-               r'filter_first_name={first_name}' \
-               r'&filter_last_name={last_name}' \
-               r'&filter_city={city}' \
-               r'&filter_gp_or_spec={practice_type}' \
-               r'&filter_specialty={specialty}' \
-               r'&filter_accept_new_pat={accepting_new}' \
-               r'&filter_gender={gender}' \
-               r'&filter_active=A' \
-               r'&filter_radius={radius}' \
-               r'&filter_postal_code={postal_code}' \
-               r'&filter_language=' \
-               r'&filter_nonce=1113150886' \
-               r'&e92faf8b732de6f565afa13d6e79b1d7=296'
-
-
-    search_url = base_url.format(
-        first_name=kwargs.get('first_name', ''),
-        last_name=kwargs.get('last_name', ''),
-        city=kwargs.get('city', ''),
-        practice_type=kwargs.get('practice_type', 'A'),
-        specialty=kwargs.get('specialty', ''),
-        accepting_new=kwargs.get('accepting_new', 0),
-        gender=kwargs.get('gender', 'E'),
-        radius=kwargs.get('radius', ''),
-        postal_code=kwargs.get('postal_code', ''),
-     )
-
-    # todo: only accepting new?
-    return search_url
-
-
 class DrSpider(CrawlSpider):
     name = 'dr_spider'
     allowed_domains = [r'www.cpsbc.ca']
-    start_urls = build_start_urls()
+    start_urls = ['https://www.cpsbc.ca/physician_search']
+    search_page = 'https://www.cpsbc.ca/physician_search'
     rules = (
         # parse dr info page
         Rule(
@@ -78,6 +42,13 @@ class DrSpider(CrawlSpider):
             callback="parse_dr_page",
             # follow=True
             ),
+
+        Rule(
+            LinkExtractor(allow=('/physician_search?',), restrict_xpaths=['//td[@class="title-address"]',]),
+            callback="parse_results_page",
+            # follow=True
+            ),
+
 
         # follow next page (link in "next" button)
         Rule(
@@ -88,15 +59,37 @@ class DrSpider(CrawlSpider):
 
     def __init__(self, *args, **kwargs):
         super(DrSpider, self).__init__(*args, **kwargs)
-        self.name = 'dr_spider'
         self.item_xpaths = load_xpaths()
-        self.start_urls = build_start_urls()
+        # self.driver = webdriver.Firefox() #PhantomJS(r'/Users/kaylabonnet/Desktop/phantomjs-2.0.0-macosx/bin')
 
-    # def parse_results_page(self, response):
-    #     regex_title = re.compile(r'http://www.amazon.com/(.+)/dp')
-    #     sel = Selector(response)
+    # def parse(self, response):
+    #     self.driver.get(response.url)
+    #     # time.sleep(10)
+    #     postal_code = self.driver.find_element_by_name('filter[postal_code]')
+    #     radius = self.driver.find_element_by_name('filter[radius]')
+    #     search_button = self.driver.find_element_by_xpath('//*[@id="edit-submit"]')
     #
-    #     yield item
+    #     postal_code.send_keys('V5K 0A1')
+    #     radius.send_keys('2')
+    #     search_button.click()
+    #     self.parse_results_page(self.driver.page_source)
+
+    # def search(self, **kwargs):
+    #     self.driver.get(kwargs.get('url'))
+    #     # time.sleep(10)
+    #     postal_code = self.driver.find_element_by_name('filter[postal_code]')
+    #     radius = self.driver.find_element_by_name('filter[radius]')
+    #     search_button = self.driver.find_element_by_xpath('//*[@id="edit-submit"]')
+    #
+    #     postal_code.send_keys(kwargs.get('postal_code'))
+    #     radius.send_keys(kwargs.get('radius'))
+    #     search_button.click()
+    #     yield self.driver.page_source
+
+    def parse_results_page(self, response):
+        regex_title = re.compile(r'http://www.amazon.com/(.+)/dp')
+        sel = Selector(response)
+        link = sel.xpath('//*[@id="college-physio-search"]/div[1]/div[1]/table[2]/tbody/tr[1]/td[1]/a')
 
     def parse_dr_page(self, response):
             sel = Selector(response)
@@ -111,3 +104,46 @@ class DrSpider(CrawlSpider):
 
             yield item
 
+
+# def parse(self, response):
+#     yield FormRequest.from_response(response,
+#                                     formname='college-physio-search-filter-form',
+#                                     formdata={'filter[radius]':'3',
+#                                               'filter[postal_code]':'V5Y4B7',
+#                                               },
+#                                     clickdata={'name':'op'},
+#                                     callback=self.parse_results_page,
+#                                     )
+
+
+# def build_search_url(**kwargs):
+#     base_url = r'https://www.cpsbc.ca/physician_search?' \
+#                r'filter_first_name={first_name}' \
+#                r'&filter_last_name={last_name}' \
+#                r'&filter_city={city}' \
+#                r'&filter_gp_or_spec={practice_type}' \
+#                r'&filter_specialty={specialty}' \
+#                r'&filter_accept_new_pat={accepting_new}' \
+#                r'&filter_gender={gender}' \
+#                r'&filter_active=A' \
+#                r'&filter_radius={radius}' \
+#                r'&filter_postal_code={postal_code}' \
+#                r'&filter_language=' \
+#                r'&filter_nonce=1113150886' \
+#                r'&e92faf8b732de6f565afa13d6e79b1d7=296'
+#
+#
+#     search_url = base_url.format(
+#         first_name=kwargs.get('first_name', ''),
+#         last_name=kwargs.get('last_name', ''),
+#         city=kwargs.get('city', ''),
+#         practice_type=kwargs.get('practice_type', 'A'),
+#         specialty=kwargs.get('specialty', ''),
+#         accepting_new=kwargs.get('accepting_new', 0),
+#         gender=kwargs.get('gender', 'E'),
+#         radius=kwargs.get('radius', ''),
+#         postal_code=kwargs.get('postal_code', ''),
+#      )
+#
+#     # todo: only accepting new?
+#     return search_url
