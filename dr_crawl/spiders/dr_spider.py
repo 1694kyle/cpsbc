@@ -61,8 +61,7 @@ class DrSpider(CrawlSpider):
         super(DrSpider, self).__init__(*args, **kwargs)
         self.name = 'dr_spider'
         self.item_xpaths = load_xpaths()
-        self.postal_code = kwargs.get('postal_code')
-        self.radius = kwargs.get('radius')
+        self.form_data = kwargs.get('form_data')
 
     def parse_results_page(self, response):
         regex_title = re.compile(r'http://www.amazon.com/(.+)/dp')

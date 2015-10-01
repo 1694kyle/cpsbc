@@ -7,8 +7,7 @@ class SeleniumMiddleware(object):
     def process_request(self, request, spider):
         if request.url == spider.search_url and spider.name == 'dr_spider':
             driver = webdriver.PhantomJS()
-            postal_code = spider.postal_code
-            radius = spider.radius
+            form_data = spider.form_data
 
             driver.get(request.url)
 
@@ -16,8 +15,8 @@ class SeleniumMiddleware(object):
             radius_field = driver.find_element_by_name('filter[radius]')
             search_button = driver.find_element_by_xpath('//*[@id="edit-submit"]')
 
-            postal_code_field.send_keys(postal_code)
-            radius_field.send_keys(radius)
+            postal_code_field.send_keys(form_data['postal_code'])
+            radius_field.send_keys(form_data['radius'])
             search_button.click()
 
             body = driver.page_source
