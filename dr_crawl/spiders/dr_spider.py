@@ -11,7 +11,6 @@ from scrapy.xlib.pydispatch import dispatcher
 import time
 
 
-
 def load_xpaths():
     xpaths = {
         'title': './/span[@id="productTitle"]/text()',
@@ -34,17 +33,18 @@ class DrSpider(CrawlSpider):
     name = 'dr_spider'
     allowed_domains = [r'www.cpsbc.ca']
     start_urls = ['https://www.cpsbc.ca/physician_search']
-    search_page = 'https://www.cpsbc.ca/physician_search'
+    search_url = 'https://www.cpsbc.ca/physician_search'
     rules = (
         # parse dr info page
         Rule(
-            LinkExtractor(allow=('/physician_search_result/',), restrict_xpaths=['//td[@class="title-address"]',]),
+            LinkExtractor(allow=('.+/physician_search_result/.+',), restrict_xpaths=['//td[@class="title-address"]',]),
             callback="parse_dr_page",
             # follow=True
             ),
 
+        # results page
         Rule(
-            LinkExtractor(allow=('/physician_search?',), restrict_xpaths=['//td[@class="title-address"]',]),
+            LinkExtractor(allow=('.+/physician_search?.+',), restrict_xpaths=['//td[@class="title-address"]',]),
             callback="parse_results_page",
             # follow=True
             ),
@@ -59,32 +59,10 @@ class DrSpider(CrawlSpider):
 
     def __init__(self, *args, **kwargs):
         super(DrSpider, self).__init__(*args, **kwargs)
+        self.name = 'dr_spider'
         self.item_xpaths = load_xpaths()
-        # self.driver = webdriver.Firefox() #PhantomJS(r'/Users/kaylabonnet/Desktop/phantomjs-2.0.0-macosx/bin')
-
-    # def parse(self, response):
-    #     self.driver.get(response.url)
-    #     # time.sleep(10)
-    #     postal_code = self.driver.find_element_by_name('filter[postal_code]')
-    #     radius = self.driver.find_element_by_name('filter[radius]')
-    #     search_button = self.driver.find_element_by_xpath('//*[@id="edit-submit"]')
-    #
-    #     postal_code.send_keys('V5K 0A1')
-    #     radius.send_keys('2')
-    #     search_button.click()
-    #     self.parse_results_page(self.driver.page_source)
-
-    # def search(self, **kwargs):
-    #     self.driver.get(kwargs.get('url'))
-    #     # time.sleep(10)
-    #     postal_code = self.driver.find_element_by_name('filter[postal_code]')
-    #     radius = self.driver.find_element_by_name('filter[radius]')
-    #     search_button = self.driver.find_element_by_xpath('//*[@id="edit-submit"]')
-    #
-    #     postal_code.send_keys(kwargs.get('postal_code'))
-    #     radius.send_keys(kwargs.get('radius'))
-    #     search_button.click()
-    #     yield self.driver.page_source
+        self.postal_code = kwargs.get('postal_code')
+        self.radius = kwargs.get('radius')
 
     def parse_results_page(self, response):
         regex_title = re.compile(r'http://www.amazon.com/(.+)/dp')
