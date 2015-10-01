@@ -6,7 +6,7 @@ from selenium import webdriver
 class SeleniumMiddleware(object):
     def process_request(self, request, spider):
         if request.url == spider.search_url and spider.name == 'dr_spider':
-            driver = webdriver.PhantomJS()
+            driver = webdriver.Firefox()
             form_data = spider.form_data
 
             driver.get(request.url)
